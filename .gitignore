@@ -1,0 +1,8 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+backend/.env
+backend/venv/
+backend/lifeadmin.db
+backend/temp_upload.pdf
+frontend/node_modules/
+__pycache__/
+*.pyc
