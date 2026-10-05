@@ -13,90 +13,45 @@ from sqlalchemy.orm import Session
 from database import engine, SessionLocal
 from models import Base, Task
 
-
-# -----------------------------------------
-# LOAD ENVIRONMENT VARIABLES
-# -----------------------------------------
-
 load_dotenv()
-
-
-# -----------------------------------------
-# CONNECT TO OPENAI
-# -----------------------------------------
 
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-
-# -----------------------------------------
-# CREATE FASTAPI APP
-# -----------------------------------------
-
 app = FastAPI()
-
-
-# -----------------------------------------
-# CREATE DATABASE TABLES
-# -----------------------------------------
 
 Base.metadata.create_all(bind=engine)
 
-
-# -----------------------------------------
-# CORS
-# -----------------------------------------
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://lifeadmin-ai-17ei.onrender.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# -----------------------------------------
-# HOME ROUTE
-# -----------------------------------------
-
 @app.get("/")
 def home():
-
     return {
         "message": "LifeAdmin AI backend is running!"
     }
 
-
-# -----------------------------------------
-# TEST AI
-# -----------------------------------------
-
 @app.get("/test-ai")
 def test_ai():
-
     response = client.responses.create(
         model="gpt-6-luna",
         input="Say hello to LifeAdmin AI in one short sentence."
     )
-
     return {
         "message": response.output_text
     }
 
-
-# -----------------------------------------
-# ANALYZE IMAGE
-# -----------------------------------------
-
 @app.post("/analyze-image")
 async def analyze_image(file: UploadFile = File(...)):
-
-    # -------------------------------------
-    # READ IMAGE
-    # -------------------------------------
-
     image_bytes = await file.read()
 
     base64_image = base64.b64encode(
@@ -105,24 +60,14 @@ async def analyze_image(file: UploadFile = File(...)):
 
     content_type = file.content_type or "image/png"
 
-
-    # -------------------------------------
-    # SEND IMAGE TO AI
-    # -------------------------------------
-
     response = client.responses.create(
-
         model="gpt-6-luna",
-
         input=[
             {
                 "role": "user",
-
                 "content": [
-
                     {
                         "type": "input_text",
-
                         "text": """
 You are LifeAdmin AI.
 
@@ -166,13 +111,10 @@ Rules:
 - Priority must be exactly High, Medium, or Low.
 """,
                     },
-
                     {
                         "type": "input_image",
-
                         "image_url":
                             f"data:{content_type};base64,{base64_image}",
-
                         "detail": "auto",
                     },
                 ],
@@ -180,51 +122,27 @@ Rules:
         ],
     )
 
-
-    # -------------------------------------
-    # GET AI RESULT
-    # -------------------------------------
-
     ai_output = response.output_text
 
-
-    # -------------------------------------
-    # CONVERT AI RESULT TO JSON
-    # -------------------------------------
-
     try:
-
         tasks = json.loads(ai_output)
 
     except json.JSONDecodeError:
-
         return {
             "filename": file.filename,
             "error": "AI returned invalid JSON",
             "raw_analysis": ai_output
         }
 
-
-    # -------------------------------------
-    # SAVE TASKS TO DATABASE
-    # -------------------------------------
-
     db: Session = SessionLocal()
 
     try:
-
         for task in tasks["tasks"]:
-
             new_task = Task(
-
                 title=task["title"],
-
                 date=task["date"],
-
                 time=task["time"],
-
                 priority=task["priority"],
-
                 reason=task["reason"]
             )
 
@@ -233,33 +151,16 @@ Rules:
         db.commit()
 
     finally:
-
         db.close()
 
-
-    # -------------------------------------
-    # RETURN RESULT
-    # -------------------------------------
-
     return {
-
         "filename": file.filename,
-
         "tasks": tasks["tasks"]
     }
 
 
-# -----------------------------------------
-# ANALYZE PDF
-# -----------------------------------------
-
 @app.post("/analyze-pdf")
 async def analyze_pdf(file: UploadFile = File(...)):
-
-    # -------------------------------------
-    # READ PDF
-    # -------------------------------------
-
     pdf_bytes = await file.read()
 
     temp_pdf = "temp_upload.pdf"
@@ -267,52 +168,31 @@ async def analyze_pdf(file: UploadFile = File(...)):
     with open(temp_pdf, "wb") as pdf_file:
         pdf_file.write(pdf_bytes)
 
-
-    # -------------------------------------
-    # EXTRACT TEXT FROM PDF
-    # -------------------------------------
-
     try:
-
         reader = PdfReader(temp_pdf)
 
         extracted_text = ""
 
         for page in reader.pages:
-
             page_text = page.extract_text()
 
             if page_text:
                 extracted_text += page_text + "\n"
 
     except Exception as error:
-
         return {
             "filename": file.filename,
             "error": f"Could not read PDF: {str(error)}"
         }
 
-
-    # -------------------------------------
-    # CHECK IF TEXT WAS FOUND
-    # -------------------------------------
-
     if not extracted_text.strip():
-
         return {
             "filename": file.filename,
             "error": "Could not extract text from this PDF."
         }
 
-
-    # -------------------------------------
-    # SEND PDF TEXT TO AI
-    # -------------------------------------
-
     response = client.responses.create(
-
         model="gpt-6-luna",
-
         input=f"""
 You are LifeAdmin AI.
 
@@ -361,51 +241,27 @@ PDF TEXT:
 """
     )
 
-
-    # -------------------------------------
-    # GET AI RESULT
-    # -------------------------------------
-
     ai_output = response.output_text
 
-
-    # -------------------------------------
-    # CONVERT AI RESULT TO JSON
-    # -------------------------------------
-
     try:
-
         tasks = json.loads(ai_output)
 
     except json.JSONDecodeError:
-
         return {
             "filename": file.filename,
             "error": "AI returned invalid JSON",
             "raw_analysis": ai_output
         }
 
-
-    # -------------------------------------
-    # SAVE PDF TASKS TO DATABASE
-    # -------------------------------------
-
     db: Session = SessionLocal()
 
     try:
-
         for task in tasks["tasks"]:
-
             new_task = Task(
-
                 title=task["title"],
-
                 date=task["date"],
-
                 time=task["time"],
-
                 priority=task["priority"],
-
                 reason=task["reason"]
             )
 
@@ -414,33 +270,19 @@ PDF TEXT:
         db.commit()
 
     finally:
-
         db.close()
 
-
-    # -------------------------------------
-    # RETURN PDF RESULT
-    # -------------------------------------
-
     return {
-
         "filename": file.filename,
-
         "tasks": tasks["tasks"]
     }
 
 
-# -----------------------------------------
-# GET ALL SAVED TASKS
-# -----------------------------------------
-
 @app.get("/tasks")
 def get_tasks():
-
     db: Session = SessionLocal()
 
     try:
-
         tasks = db.query(Task).order_by(Task.id.desc()).all()
 
         return {
@@ -459,27 +301,19 @@ def get_tasks():
         }
 
     finally:
-
         db.close()
 
 
-# -----------------------------------------
-# COMPLETE A TASK
-# -----------------------------------------
-
 @app.put("/tasks/{task_id}/complete")
 def complete_task(task_id: int):
-
     db: Session = SessionLocal()
 
     try:
-
         task = db.query(Task).filter(
             Task.id == task_id
         ).first()
 
         if not task:
-
             return {
                 "error": "Task not found"
             }
@@ -494,27 +328,19 @@ def complete_task(task_id: int):
         }
 
     finally:
-
         db.close()
 
 
-# -----------------------------------------
-# DELETE A TASK
-# -----------------------------------------
-
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
-
     db: Session = SessionLocal()
 
     try:
-
         task = db.query(Task).filter(
             Task.id == task_id
         ).first()
 
         if not task:
-
             return {
                 "error": "Task not found"
             }
@@ -529,5 +355,4 @@ def delete_task(task_id: int):
         }
 
     finally:
-
         db.close()
