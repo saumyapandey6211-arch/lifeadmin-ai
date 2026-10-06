@@ -158,9 +158,8 @@ function App() {
             </h2>
 
             <p>
-              Upload up to 5 screenshots or PDFs at once. LifeAdmin AI finds
-              the important tasks, deadlines, events, and reminders hiding
-              inside them.
+              Upload screenshots or PDFs. LifeAdmin AI finds the important
+              tasks, deadlines, events, and reminders hiding inside them.
             </p>
 
             <button
@@ -168,9 +167,7 @@ function App() {
               onClick={() => fileInputRef.current.click()}
               disabled={uploading}
             >
-              {uploading
-                ? "Analyzing..."
-                : "Upload up to 5 screenshots or PDFs"}
+              {uploading ? "Analyzing..." : "Upload screenshot or PDF"}
             </button>
 
             <input
@@ -189,14 +186,13 @@ function App() {
               JPG
               <span>✓</span>
               PDF
-              <span>✓</span>
-              Up to 5 files
             </div>
           </div>
 
           <div className="hero-visual">
             <div className="floating-card card-one">
               <div className="mini-icon">📅</div>
+
               <div>
                 <strong>Deadline found</strong>
                 <small>Project submission</small>
@@ -209,6 +205,7 @@ function App() {
 
             <div className="floating-card card-two">
               <div className="mini-icon">✓</div>
+
               <div>
                 <strong>Action extracted</strong>
                 <small>Submit assignment</small>
@@ -227,6 +224,7 @@ function App() {
         <section className="stats">
           <div className="stat-card">
             <div className="stat-icon">📋</div>
+
             <div>
               <span className="stat-number">{tasks.length}</span>
               <span className="stat-label">Total Tasks</span>
@@ -235,6 +233,7 @@ function App() {
 
           <div className="stat-card">
             <div className="stat-icon">⏳</div>
+
             <div>
               <span className="stat-number">{pendingTasks.length}</span>
               <span className="stat-label">Pending</span>
@@ -243,6 +242,7 @@ function App() {
 
           <div className="stat-card">
             <div className="stat-icon">✓</div>
+
             <div>
               <span className="stat-number">{completedTasks.length}</span>
               <span className="stat-label">Completed</span>
@@ -267,23 +267,27 @@ function App() {
           {loading ? (
             <div className="empty-state">
               <div className="loader"></div>
+
               <h4>Loading your tasks...</h4>
+
               <p>Connecting to your LifeAdmin dashboard.</p>
             </div>
           ) : tasks.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">✦</div>
+
               <h4>No tasks yet</h4>
+
               <p>
-                Upload up to 5 screenshots or PDFs and let LifeAdmin AI find
-                the important things for you.
+                Upload screenshots or PDFs and let LifeAdmin AI find the
+                important things for you.
               </p>
 
               <button
                 className="secondary-button"
                 onClick={() => fileInputRef.current.click()}
               >
-                Upload your first files
+                Upload your first file
               </button>
             </div>
           ) : (
@@ -354,10 +358,13 @@ function App() {
           <div className="steps">
             <div className="step">
               <div className="step-number">01</div>
+
               <div className="step-icon">📤</div>
+
               <h4>Upload</h4>
+
               <p>
-                Upload up to 5 screenshots or PDFs containing information.
+                Upload screenshots or PDFs containing important information.
               </p>
             </div>
 
@@ -365,11 +372,14 @@ function App() {
 
             <div className="step">
               <div className="step-number">02</div>
+
               <div className="step-icon">✦</div>
+
               <h4>Understand</h4>
+
               <p>
                 AI identifies tasks, deadlines, events, and reminders across
-                all your files.
+                your information.
               </p>
             </div>
 
@@ -377,8 +387,11 @@ function App() {
 
             <div className="step">
               <div className="step-number">03</div>
+
               <div className="step-icon">✓</div>
+
               <h4>Take action</h4>
+
               <p>
                 See everything important in one organized dashboard.
               </p>
