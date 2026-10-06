@@ -1,9 +1,9 @@
 import os
 import base64
 import json
+from io import BytesIO
 
 from pypdf import PdfReader
-
 from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,28 +50,45 @@ def test_ai():
         "message": response.output_text
     }
 
-@app.post("/analyze-image")
-async def analyze_image(file: UploadFile = File(...)):
-    image_bytes = await file.read()
+def save_tasks(task_list):
+    db: Session = SessionLocal()
 
-    base64_image = base64.b64encode(
-        image_bytes
-    ).decode("utf-8")
+    try:
+        for task in task_list:
+            new_task = Task(
+                title=task["title"],
+                date=task["date"],
+                time=task["time"],
+                priority=task["priority"],
+                reason=task["reason"]
+            )
+            db.add(new_task)
 
-    content_type = file.content_type or "image/png"
+        db.commit()
+    finally:
+        db.close()
 
-    response = client.responses.create(
-        model="gpt-6-luna",
-        input=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": """
+@app.post("/analyze-files")
+async def analyze_files(files: list[UploadFile] = File(...)):
+    if not files:
+        return {
+            "error": "Please upload at least one file."
+        }
+
+    if len(files) > 5:
+        return {
+            "error": "You can upload a maximum of 5 files at a time."
+        }
+
+    content = [
+        {
+            "type": "input_text",
+            "text": """
 You are LifeAdmin AI.
 
-Analyze this screenshot carefully.
+Analyze ALL uploaded files together.
+
+The files may contain screenshots, images, PDFs, messages, schedules, assignments, notices, forms, or other everyday information.
 
 Find everything that represents:
 
@@ -83,6 +100,10 @@ Find everything that represents:
 - an assignment
 - an important date
 - something the user needs to do
+
+Combine information from all files.
+
+If the same task appears in multiple files, include it only once.
 
 Return ONLY valid JSON.
 
@@ -106,177 +127,129 @@ Rules:
 - Do not add ```json.
 - Do not add explanations outside the JSON.
 - Include every important task or event you can find.
+- Do not create information that is not present in the files.
 - If a date is not visible, use "Not specified".
 - If a time is not visible, use "Not specified".
 - Priority must be exactly High, Medium, or Low.
-""",
-                    },
-                    {
-                        "type": "input_image",
-                        "image_url":
-                            f"data:{content_type};base64,{base64_image}",
-                        "detail": "auto",
-                    },
-                ],
-            }
-        ],
-    )
-
-    ai_output = response.output_text
-
-    try:
-        tasks = json.loads(ai_output)
-
-    except json.JSONDecodeError:
-        return {
-            "filename": file.filename,
-            "error": "AI returned invalid JSON",
-            "raw_analysis": ai_output
+- Avoid duplicate tasks across files.
+"""
         }
+    ]
 
-    db: Session = SessionLocal()
+    filenames = []
 
-    try:
-        for task in tasks["tasks"]:
-            new_task = Task(
-                title=task["title"],
-                date=task["date"],
-                time=task["time"],
-                priority=task["priority"],
-                reason=task["reason"]
+    for file in files:
+        filenames.append(file.filename or "unknown file")
+
+        file_bytes = await file.read()
+        content_type = file.content_type or ""
+
+        if content_type.startswith("image/"):
+            base64_image = base64.b64encode(
+                file_bytes
+            ).decode("utf-8")
+
+            content.append(
+                {
+                    "type": "input_image",
+                    "image_url": f"data:{content_type};base64,{base64_image}",
+                    "detail": "auto"
+                }
             )
 
-            db.add(new_task)
+        elif content_type == "application/pdf" or (file.filename or "").lower().endswith(".pdf"):
+            try:
+                reader = PdfReader(BytesIO(file_bytes))
+                extracted_text = ""
 
-        db.commit()
+                for page in reader.pages:
+                    page_text = page.extract_text()
 
-    finally:
-        db.close()
+                    if page_text:
+                        extracted_text += page_text + "\n"
 
-    return {
-        "filename": file.filename,
-        "tasks": tasks["tasks"]
-    }
-
-
-@app.post("/analyze-pdf")
-async def analyze_pdf(file: UploadFile = File(...)):
-    pdf_bytes = await file.read()
-
-    temp_pdf = "temp_upload.pdf"
-
-    with open(temp_pdf, "wb") as pdf_file:
-        pdf_file.write(pdf_bytes)
-
-    try:
-        reader = PdfReader(temp_pdf)
-
-        extracted_text = ""
-
-        for page in reader.pages:
-            page_text = page.extract_text()
-
-            if page_text:
-                extracted_text += page_text + "\n"
-
-    except Exception as error:
-        return {
-            "filename": file.filename,
-            "error": f"Could not read PDF: {str(error)}"
-        }
-
-    if not extracted_text.strip():
-        return {
-            "filename": file.filename,
-            "error": "Could not extract text from this PDF."
-        }
-
-    response = client.responses.create(
-        model="gpt-6-luna",
-        input=f"""
-You are LifeAdmin AI.
-
-Analyze the following text extracted from a PDF.
-
-Find everything that represents:
-
-- a task
-- a deadline
-- an event
-- a reminder
-- an appointment
-- an assignment
-- an important date
-- something the user needs to do
-
-Return ONLY valid JSON.
-
-Use exactly this structure:
-
-{{
-  "tasks": [
-    {{
-      "title": "Task or event name",
-      "date": "Date if visible, otherwise Not specified",
-      "time": "Time if visible, otherwise Not specified",
-      "priority": "High, Medium, or Low",
-      "reason": "Short explanation of why this matters"
-    }}
-  ]
-}}
-
-Rules:
-
-- Do not add markdown.
-- Do not add ```json.
-- Do not add explanations outside the JSON.
-- Include every important task or event you can find.
-- If a date is not visible, use "Not specified".
-- If a time is not visible, use "Not specified".
-- Priority must be exactly High, Medium, or Low.
-
-PDF TEXT:
+                if extracted_text.strip():
+                    content.append(
+                        {
+                            "type": "input_text",
+                            "text": f"""
+PDF FILE: {file.filename}
 
 {extracted_text}
 """
-    )
+                        }
+                    )
+                else:
+                    content.append(
+                        {
+                            "type": "input_text",
+                            "text": f"""
+PDF FILE: {file.filename}
 
-    ai_output = response.output_text
+This PDF did not contain extractable text.
+"""
+                        }
+                    )
+
+            except Exception:
+                content.append(
+                    {
+                        "type": "input_text",
+                        "text": f"""
+PDF FILE: {file.filename}
+
+This PDF could not be read.
+"""
+                    }
+                )
+
+        else:
+            return {
+                "error": f"Unsupported file type: {file.filename}"
+            }
 
     try:
+        response = client.responses.create(
+            model="gpt-6-luna",
+            input=[
+                {
+                    "role": "user",
+                    "content": content
+                }
+            ]
+        )
+
+        ai_output = response.output_text
         tasks = json.loads(ai_output)
 
     except json.JSONDecodeError:
         return {
-            "filename": file.filename,
-            "error": "AI returned invalid JSON",
+            "error": "AI returned invalid JSON.",
             "raw_analysis": ai_output
         }
 
-    db: Session = SessionLocal()
+    except Exception as error:
+        return {
+            "error": f"AI analysis failed: {str(error)}"
+        }
 
-    try:
-        for task in tasks["tasks"]:
-            new_task = Task(
-                title=task["title"],
-                date=task["date"],
-                time=task["time"],
-                priority=task["priority"],
-                reason=task["reason"]
-            )
+    task_list = tasks.get("tasks", [])
 
-            db.add(new_task)
-
-        db.commit()
-
-    finally:
-        db.close()
+    save_tasks(task_list)
 
     return {
-        "filename": file.filename,
-        "tasks": tasks["tasks"]
+        "filenames": filenames,
+        "file_count": len(files),
+        "tasks": task_list
     }
 
+@app.post("/analyze-image")
+async def analyze_image(file: UploadFile = File(...)):
+    return await analyze_files([file])
+
+@app.post("/analyze-pdf")
+async def analyze_pdf(file: UploadFile = File(...)):
+    return await analyze_files([file])
 
 @app.get("/tasks")
 def get_tasks():
@@ -303,7 +276,6 @@ def get_tasks():
     finally:
         db.close()
 
-
 @app.put("/tasks/{task_id}/complete")
 def complete_task(task_id: int):
     db: Session = SessionLocal()
@@ -319,7 +291,6 @@ def complete_task(task_id: int):
             }
 
         task.status = "completed"
-
         db.commit()
 
         return {
@@ -329,7 +300,6 @@ def complete_task(task_id: int):
 
     finally:
         db.close()
-
 
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
@@ -346,7 +316,6 @@ def delete_task(task_id: int):
             }
 
         db.delete(task)
-
         db.commit()
 
         return {

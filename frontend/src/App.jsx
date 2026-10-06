@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
 
-const API_BASE_URL = "https://lifeadmin-ai-usa3.onrender.com";
+const API_BASE_URL = "https://lifeadmin-ai-backend.onrender.com";
 
 function App() {
   const [tasks, setTasks] = useState([]);
@@ -27,26 +27,33 @@ function App() {
   }, []);
 
   const handleUpload = async (event) => {
-    const file = event.target.files[0];
+    const selectedFiles = Array.from(event.target.files || []);
 
-    if (!file) {
+    if (!selectedFiles.length) {
+      return;
+    }
+
+    if (selectedFiles.length > 5) {
+      setMessage("You can upload a maximum of 5 files at a time.");
+      event.target.value = "";
       return;
     }
 
     setUploading(true);
-    setMessage("LifeAdmin AI is analyzing your file...");
+    setMessage(
+      `LifeAdmin AI is analyzing ${selectedFiles.length} file${
+        selectedFiles.length === 1 ? "" : "s"
+      }...`
+    );
 
     const formData = new FormData();
-    formData.append("file", file);
+
+    selectedFiles.forEach((file) => {
+      formData.append("files", file);
+    });
 
     try {
-      const isPdf = file.type === "application/pdf";
-
-      const endpoint = isPdf
-        ? `${API_BASE_URL}/analyze-pdf`
-        : `${API_BASE_URL}/analyze-image`;
-
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${API_BASE_URL}/analyze-files`, {
         method: "POST",
         body: formData
       });
@@ -54,7 +61,9 @@ function App() {
       const data = await response.json();
 
       if (!response.ok || data.error) {
-        setMessage(data.error || "Something went wrong while analyzing the file.");
+        setMessage(
+          data.error || "Something went wrong while analyzing the files."
+        );
         return;
       }
 
@@ -63,10 +72,12 @@ function App() {
       setMessage(
         `${data.tasks?.length || 0} actionable item${
           data.tasks?.length === 1 ? "" : "s"
-        } found.`
+        } found from ${selectedFiles.length} file${
+          selectedFiles.length === 1 ? "" : "s"
+        }.`
       );
     } catch (error) {
-      setMessage("Could not analyze the file. Please try again.");
+      setMessage("Could not analyze the files. Please try again.");
     } finally {
       setUploading(false);
       event.target.value = "";
@@ -147,8 +158,9 @@ function App() {
             </h2>
 
             <p>
-              Upload a screenshot or PDF. LifeAdmin AI finds the important
-              tasks, deadlines, events, and reminders hiding inside it.
+              Upload up to 5 screenshots or PDFs at once. LifeAdmin AI finds
+              the important tasks, deadlines, events, and reminders hiding
+              inside them.
             </p>
 
             <button
@@ -156,13 +168,16 @@ function App() {
               onClick={() => fileInputRef.current.click()}
               disabled={uploading}
             >
-              {uploading ? "Analyzing..." : "Upload screenshot or PDF"}
+              {uploading
+                ? "Analyzing..."
+                : "Upload up to 5 screenshots or PDFs"}
             </button>
 
             <input
               ref={fileInputRef}
               type="file"
               accept=".png,.jpg,.jpeg,.pdf"
+              multiple
               onChange={handleUpload}
               hidden
             />
@@ -174,6 +189,8 @@ function App() {
               JPG
               <span>✓</span>
               PDF
+              <span>✓</span>
+              Up to 5 files
             </div>
           </div>
 
@@ -258,15 +275,15 @@ function App() {
               <div className="empty-icon">✦</div>
               <h4>No tasks yet</h4>
               <p>
-                Upload a screenshot or PDF and let LifeAdmin AI find the
-                important things for you.
+                Upload up to 5 screenshots or PDFs and let LifeAdmin AI find
+                the important things for you.
               </p>
 
               <button
                 className="secondary-button"
                 onClick={() => fileInputRef.current.click()}
               >
-                Upload your first file
+                Upload your first files
               </button>
             </div>
           ) : (
@@ -339,7 +356,9 @@ function App() {
               <div className="step-number">01</div>
               <div className="step-icon">📤</div>
               <h4>Upload</h4>
-              <p>Drop in a screenshot or PDF containing information.</p>
+              <p>
+                Upload up to 5 screenshots or PDFs containing information.
+              </p>
             </div>
 
             <div className="step-line"></div>
@@ -348,7 +367,10 @@ function App() {
               <div className="step-number">02</div>
               <div className="step-icon">✦</div>
               <h4>Understand</h4>
-              <p>AI identifies tasks, deadlines, events, and reminders.</p>
+              <p>
+                AI identifies tasks, deadlines, events, and reminders across
+                all your files.
+              </p>
             </div>
 
             <div className="step-line"></div>
@@ -357,7 +379,9 @@ function App() {
               <div className="step-number">03</div>
               <div className="step-icon">✓</div>
               <h4>Take action</h4>
-              <p>See everything important in one organized dashboard.</p>
+              <p>
+                See everything important in one organized dashboard.
+              </p>
             </div>
           </div>
         </section>

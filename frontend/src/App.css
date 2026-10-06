@@ -44,7 +44,7 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.92);
   border-bottom: 1px solid rgba(66, 42, 75, 0.08);
   backdrop-filter: blur(18px);
   position: sticky;
@@ -75,6 +75,7 @@ button:disabled {
   font-size: 19px;
   font-weight: 750;
   letter-spacing: -0.4px;
+  color: #3f2948;
 }
 
 .brand p {
@@ -136,6 +137,7 @@ button:disabled {
   line-height: 0.98;
   letter-spacing: -4px;
   font-weight: 800;
+  color: #3f2948;
 }
 
 .hero h2 span {
@@ -237,7 +239,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 11px;
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(89, 61, 94, 0.08);
   border-radius: 16px;
   box-shadow: 0 20px 45px rgba(93, 66, 101, 0.13);
@@ -370,6 +372,7 @@ button:disabled {
   margin: 6px 0 0;
   font-size: 29px;
   letter-spacing: -1px;
+  color: #3f2948;
 }
 
 .task-count {
@@ -542,6 +545,7 @@ button:disabled {
 .empty-state h4 {
   margin: 0;
   font-size: 17px;
+  color: #3f2948;
 }
 
 .empty-state p {
@@ -621,6 +625,7 @@ button:disabled {
 .step h4 {
   margin: 0;
   font-size: 14px;
+  color: #3f2948;
 }
 
 .step p {
